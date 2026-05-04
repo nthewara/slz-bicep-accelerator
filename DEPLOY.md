@@ -28,6 +28,15 @@ az rest --method post \
   --url "/providers/Microsoft.Authorization/elevateAccess?api-version=2016-07-01"
 ```
 
+
+```bash
+az role assignment list --scope / --assignee <SERVICEPRINCIPAL OR USER OBJECTID>
+```
+
+
+```bash
+az role assignment create --assignee <SERVICEPRINCIPAL OR USER OBJECTID> --role Owner --scope --verbose
+```
 ---
 
 ## 1. Clone this repo
