@@ -175,6 +175,12 @@ foreach ($f in $files) {
 
 ### 2b. Run the upstream sync helper (optional)
 
+Powershell 7.1 Required for this script to run properly. Please run below command if you using older powershell version. 
+
+```powershell
+winget install --id Microsoft.PowerShell -e
+```
+
 ```bash
 pwsh ./templates/core/governance/tooling/Update-AlzLibraryReferences.ps1 -WhatIf
 ```
