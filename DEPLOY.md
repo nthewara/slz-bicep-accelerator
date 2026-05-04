@@ -52,6 +52,7 @@ cd slz-bicep-accelerator
 
 The Bicep modules reference policy/role/archetype JSON via `loadJsonContent('../../lib/alz/...')`. You need to populate that directory from the [Azure Landing Zones Library](https://github.com/Azure/Azure-Landing-Zones-Library) at tag `platform/slz/2026.04.2`.
 
+This is for Linux/Mac user bases. 
 ```bash
 # from repo root
 TMP=$(mktemp -d)
@@ -68,10 +69,30 @@ ls templates/core/governance/lib/alz/
 #         policy_set_definitions/  role_definitions/  architecture_definitions/
 ```
 
+This is for windows user bases. 
+```powershell
+# from repo root
+$TMP = Join-Path $env:TEMP (New-Guid)
+mkdir $TMP
+
+git clone --depth 1 --branch platform/slz/2026.04.2 https://github.com/Azure/Azure-Landing-Zones-Library.git $TMP
+
+# Copy SLZ library content into the bicep accelerator's lib path
+mkdir -p templates/core/governance/lib/alz
+Copy-Item -Path "$TMP/platform/slz/*" -Destination "templates/core/governance/lib/alz/" -Recurse
+
+# Sanity check
+ls templates/core/governance/lib/alz/
+# expect: archetype_definitions/  policy_assignments/  policy_definitions/
+#         policy_set_definitions/  role_definitions/  architecture_definitions/
+```
+
+
 ### 2a. Reorganise into the directory layout the Bicep modules expect
 
 The Bicep modules reference paths like `lib/alz/sovereign_l1/Enforce-Sov-L1-Regions.alz_policy_assignment.json` and `lib/alz/landingzones/public/Deny-L3-IP-Routing.alz_policy_assignment.json`. The SLZ library ships everything flat under `policy_assignments/`. Run this once to fan them out:
 
+This is for Linux/Mac user bases.
 ```bash
 cd templates/core/governance/lib/alz
 
@@ -98,6 +119,56 @@ for f in Audit-PeDnsZones Deny-HybridNetworking Deny-Public-Endpoints Deny-Publi
 done
 
 cd -
+```
+This is for windows user bases. 
+```powershell
+# Navigate to directory
+cd "templates/core/governance/lib/alz"
+
+# Sovereign directories
+$dirs = @(
+    "sovereign_l1",
+    "sovereign_l2",
+    "sovereign_l3",
+    "landingzones/public",
+    "landingzones/confidential_corp",
+    "landingzones/confidential_online"
+)
+
+foreach ($dir in $dirs) {
+    mkdir $dir -Force | Out-Null
+}
+
+# Copy individual files
+Copy-Item "policy_assignments/Enforce-Sov-L1-Regions.alz_policy_assignment.json" "sovereign_l1/" -Force
+
+Copy-Item "policy_assignments/Enforce-Sov-L2-CMKM.alz_policy_assignment.json" "sovereign_l2/" -Force
+Copy-Item "policy_assignments/Enforce-Sov-L2-CMKP.alz_policy_assignment.json" "sovereign_l2/" -Force
+Copy-Item "policy_assignments/Enforce-Sov-L2-HTTPS.alz_policy_assignment.json" "sovereign_l2/" -Force
+Copy-Item "policy_assignments/Enforce-Sov-L2-TLS.alz_policy_assignment.json" "sovereign_l2/" -Force
+
+Copy-Item "policy_assignments/Enforce-Sov-L3-Conf.alz_policy_assignment.json" "sovereign_l3/" -Force
+
+Copy-Item "policy_assignments/Deny-L3-IP-Routing.alz_policy_assignment.json" "landingzones/public/" -Force
+
+# Files to loop through
+$files = @(
+    "Audit-PeDnsZones",
+    "Deny-HybridNetworking",
+    "Deny-Public-Endpoints",
+    "Deny-Public-IP-On-NIC",
+    "Deploy-Private-DNS-Zones"
+)
+
+# Copy with "ignore errors" equivalent
+foreach ($f in $files) {
+    $src = "policy_assignments/$f.alz_policy_assignment.json"
+
+    if (Test-Path $src) {
+        Copy-Item $src "landingzones/confidential_corp/" -Force
+        Copy-Item $src "landingzones/confidential_online/" -Force
+    }
+}
 ```
 
 > If any of the corp baseline files don't exist in the SLZ library (SLZ may rename or omit a few), check `policy_assignments/` and adjust either the script above **or** the `loadJsonContent(...)` lines in `templates/core/governance/mgmt-groups/landingzones/landingzones-confidential-{corp,online}/main.bicep`.
