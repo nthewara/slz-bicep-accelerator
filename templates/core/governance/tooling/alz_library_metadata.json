@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure/Azure-Landing-Zones-Library/main/schemas/library_metadata.json",
+  "name": "local",
+  "display_name": "SLZ Accelerator - Azure Verified Modules for Sovereign Landing Zone",
+  "description": "This library references the Sovereign Landing Zone (SLZ) library and allows overriding policies, archetypes, and management group architecture in the SLZ Bicep accelerator.",
+  "dependencies": [
+    {
+      "path": "platform/slz",
+      "ref": "2026.04.2"
+    }
+  ]
+}
