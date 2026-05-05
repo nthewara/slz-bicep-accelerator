@@ -150,6 +150,7 @@ Copy-Item "policy_assignments/Enforce-Sov-L2-TLS.alz_policy_assignment.json" "so
 Copy-Item "policy_assignments/Enforce-Sov-L3-Conf.alz_policy_assignment.json" "sovereign_l3/" -Force
 
 Copy-Item "policy_assignments/Deny-L3-IP-Routing.alz_policy_assignment.json" "landingzones/public/" -Force
+Copy-Item -Path "templates/core/governance/lib/alz/landingzones/corp/*" -Destination "templates/core/governance/lib/alz/landingzones/confidential_corp/" -Recurse
 
 # Files to loop through
 $files = @(
@@ -191,7 +192,7 @@ This shows what it would update if you've changed paths. Drop `-WhatIf` once you
 
 ## 3. Customise tokens & overrides
 
-Edit `examples/platform-landing-zone.yaml` and replace placeholders:
+Edit `.config/platform-landing-zone.yaml` and replace placeholders:
 
 ```yaml
 starter_locations: ["australiaeast", "australiasoutheast"]
@@ -242,21 +243,36 @@ Fix any unresolved `loadJsonContent` paths — those mean step 2a missed a file.
 > Each module has `targetScope = 'managementGroup'`. Deploy at the **tenant root** for `int-root`, then at each MG scope thereafter.
 
 ```bash
+az login --tenant <TENTNID OR TENANTNAME>
+
 LOC=australiaeast
 
 # 5.1 Intermediate root
-az deployment mg create \
-  --management-group-id <tenant-root-mg-id> \
-  --location $LOC \
-  --template-file templates/core/governance/mgmt-groups/int-root/main.bicep \
-  --parameters templates/core/governance/mgmt-groups/int-root/main.bicepparam
+.\Deploy-IntRoot.ps1 `
+-ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
+-ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
+-IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 1
 
 # 5.2 Landing Zones parent
-az deployment mg create \
-  --management-group-id alz \
-  --location $LOC \
-  --template-file templates/core/governance/mgmt-groups/landingzones/main.bicep \
-  --parameters templates/core/governance/mgmt-groups/landingzones/main.bicepparam
+.\Deploy-IntRoot.ps1 `
+-ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
+-ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
+-IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 2
+
+.\Deploy-IntRoot.ps1 `
+-ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
+-ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
+-IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 3
+
+
+.\Deploy-IntRoot.ps1 `
+-ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
+-ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
+-IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 4
 
 # 5.3 Each child MG (run in parallel after 5.2 succeeds)
 for child in public corp online confidential-corp confidential-online local; do
