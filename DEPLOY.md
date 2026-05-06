@@ -265,11 +265,13 @@ Also Update the \templates\core\governance\lib\alz\landingzones\public\Deny-L3-I
 
 ```bicep 
 "scope": "/providers/Microsoft.Management/managementGroups/placeholder",
+"policyDefinitionId": "/providers/Microsoft.Management/managementGroups/placeholder/providers/Microsoft.Authorization/policySetDefinitions/Enforce-ALZ-Sandbox"
 ```
 
 to 
 ```bicep
 "scope": "/providers/Microsoft.Management/managementGroups/public",
+"policyDefinitionId": "/providers/Microsoft.Management/managementGroups/alz/providers/Microsoft.Authorization/policySetDefinitions/Enforce-ALZ-Sandbox"
 ````
 
 ```bash
