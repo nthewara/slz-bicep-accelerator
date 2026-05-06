@@ -247,17 +247,30 @@ NOTE: Before running the script update
 - templates\core\governance\lib\alz\sovereign_l2\Enforce-Sov-L2-HTTPS.alz_policy_assignment.json
 
 And update the 
+
+from:
 ```bicep
-from: 
   "identity": {
     "type": "none"
   }, 
-  
-  To: 
+  ```
+  To:
+  ```bicep 
   "identity": {
     "type": "SystemAssigned"
   }
 ```
+
+Also Update the \templates\core\governance\lib\alz\landingzones\public\Deny-L3-IP-Routing.alz_policy_assignment.json
+
+```bicep 
+"scope": "/providers/Microsoft.Management/managementGroups/placeholder",
+```
+
+to 
+```bicep
+"scope": "/providers/Microsoft.Management/managementGroups/public",
+````
 
 ```bash
 az login --tenant <TENTNID OR TENANTNAME>
