@@ -9,12 +9,15 @@
     2. Merges with subscription IDs supplied on the command line.
     3. Resolves every {{placeholder}} and {{placeholder||default}} token in each
        main.bicepparam file (originals are never modified – temp files are used).
-    4. Deploys all 15 management groups in four dependency-ordered waves:
+     4. Deploys 15 management groups in four dependency-ordered waves:
          Wave 1 – int-root               (parent: tenant root)
          Wave 2 – platform, landingzones, sandbox, decommissioned  (parent: int-root)
          Wave 3 – platform children      (connectivity, identity, security, management)
          Wave 4 – landingzones children  (corp, online, confidential-corp,
                                           confidential-online, local, public)
+     5. Optionally deploys networking templates in Wave 5 (subscription scope):
+            - templates/networking/hubnetworking
+            - templates/networking/virtualwan
 
 .PARAMETER YamlConfigPath
     Path to platform-landing-zone.yaml. Defaults to '<repo-root>/.config/platform-landing-zone.yaml'.
@@ -36,11 +39,21 @@
     Auto-detected from 'az account show' when omitted.
 
 .PARAMETER OnlyWaves
-    Comma-separated list of wave numbers to deploy (1,2,3,4). Deploys all waves when omitted.
+    Comma-separated list of wave numbers to deploy (1,2,3,4,5). Deploys all selected waves when omitted.
     Example: -OnlyWaves 1,2
 
+.PARAMETER DeployHubNetworking
+    Include templates/networking/hubnetworking in Wave 5.
+
+.PARAMETER DeployVirtualWan
+    Include templates/networking/virtualwan in Wave 5.
+
+.PARAMETER UpdateParameterFilesFromYaml
+    Overwrite source .bicepparam files with resolved values from platform-landing-zone.yaml.
+    When omitted, resolved values are written to temporary .resolved-*.bicepparam files.
+
 .PARAMETER WhatIf
-    Runs 'az deployment mg what-if' for every deployment instead of creating them.
+    Runs the matching what-if command for each deployment scope instead of creating resources.
 
 .PARAMETER ContinueOnError
     Continue deploying subsequent waves even if one deployment fails.
@@ -83,6 +96,12 @@ param (
     [string] $RootParentManagementGroupId,
 
     [int[]]  $OnlyWaves,
+
+    [switch] $DeployHubNetworking,
+
+    [switch] $DeployVirtualWan,
+
+    [switch] $UpdateParameterFilesFromYaml,
 
     [switch] $ContinueOnError
 )
@@ -233,34 +252,56 @@ $mgLandingZones = "$pre$($tokens['management_group_landing_zones_id'])$post"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Deployment manifest
-#    Each entry: Name, RelPath (bicep+param folder), TargetMgId, Wave
+#    Each entry: Name, RelPath (bicep+param folder), DeploymentScope, Wave
 # ─────────────────────────────────────────────────────────────────────────────
 $mgRoot = 'templates\core\governance\mgmt-groups'
+$networkRoot = 'templates\networking'
 
 $deployments = @(
     # Wave 1 – int-root (targets tenant root / supplied parent)
-    [PSCustomObject]@{ Wave=1; Name='int-root';                 RelPath="$mgRoot\int-root";                                      TargetMgId=$RootParentManagementGroupId }
+    [PSCustomObject]@{ Wave=1; Name='int-root';                 RelPath="$mgRoot\int-root";                                      DeploymentScope='management-group'; TargetMgId=$RootParentManagementGroupId }
 
     # Wave 2 – direct children of int-root
-    [PSCustomObject]@{ Wave=2; Name='platform';                 RelPath="$mgRoot\platform";                                      TargetMgId=$mgIntRootId }
-    [PSCustomObject]@{ Wave=2; Name='landingzones';             RelPath="$mgRoot\landingzones";                                  TargetMgId=$mgIntRootId }
-    [PSCustomObject]@{ Wave=2; Name='sandbox';                  RelPath="$mgRoot\sandbox";                                       TargetMgId=$mgIntRootId }
-    [PSCustomObject]@{ Wave=2; Name='decommissioned';           RelPath="$mgRoot\decommissioned";                                TargetMgId=$mgIntRootId }
+    [PSCustomObject]@{ Wave=2; Name='platform';                 RelPath="$mgRoot\platform";                                      DeploymentScope='management-group'; TargetMgId=$mgIntRootId }
+    [PSCustomObject]@{ Wave=2; Name='landingzones';             RelPath="$mgRoot\landingzones";                                  DeploymentScope='management-group'; TargetMgId=$mgIntRootId }
+    [PSCustomObject]@{ Wave=2; Name='sandbox';                  RelPath="$mgRoot\sandbox";                                       DeploymentScope='management-group'; TargetMgId=$mgIntRootId }
+    [PSCustomObject]@{ Wave=2; Name='decommissioned';           RelPath="$mgRoot\decommissioned";                                DeploymentScope='management-group'; TargetMgId=$mgIntRootId }
 
     # Wave 3 – children of platform
-    [PSCustomObject]@{ Wave=3; Name='platform-connectivity';    RelPath="$mgRoot\platform\platform-connectivity";               TargetMgId=$mgPlatformId }
-    [PSCustomObject]@{ Wave=3; Name='platform-identity';        RelPath="$mgRoot\platform\platform-identity";                   TargetMgId=$mgPlatformId }
-    [PSCustomObject]@{ Wave=3; Name='platform-security';        RelPath="$mgRoot\platform\platform-security";                   TargetMgId=$mgPlatformId }
-    [PSCustomObject]@{ Wave=3; Name='platform-management';      RelPath="$mgRoot\platform\platform-management";                 TargetMgId=$mgPlatformId }
+    [PSCustomObject]@{ Wave=3; Name='platform-connectivity';    RelPath="$mgRoot\platform\platform-connectivity";               DeploymentScope='management-group'; TargetMgId=$mgPlatformId }
+    [PSCustomObject]@{ Wave=3; Name='platform-identity';        RelPath="$mgRoot\platform\platform-identity";                   DeploymentScope='management-group'; TargetMgId=$mgPlatformId }
+    [PSCustomObject]@{ Wave=3; Name='platform-security';        RelPath="$mgRoot\platform\platform-security";                   DeploymentScope='management-group'; TargetMgId=$mgPlatformId }
+    [PSCustomObject]@{ Wave=3; Name='platform-management';      RelPath="$mgRoot\platform\platform-management";                 DeploymentScope='management-group'; TargetMgId=$mgPlatformId }
 
     # Wave 4 – children of landingzones
-    [PSCustomObject]@{ Wave=4; Name='landingzones-corp';               RelPath="$mgRoot\landingzones\landingzones-corp";               TargetMgId=$mgLandingZones }
-    [PSCustomObject]@{ Wave=4; Name='landingzones-online';             RelPath="$mgRoot\landingzones\landingzones-online";             TargetMgId=$mgLandingZones }
-    [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-corp';  RelPath="$mgRoot\landingzones\landingzones-confidential-corp";  TargetMgId=$mgLandingZones }
-    [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-online';RelPath="$mgRoot\landingzones\landingzones-confidential-online";TargetMgId=$mgLandingZones }
-    [PSCustomObject]@{ Wave=4; Name='landingzones-local';              RelPath="$mgRoot\landingzones\landingzones-local";              TargetMgId=$mgLandingZones }
-    [PSCustomObject]@{ Wave=4; Name='landingzones-public';             RelPath="$mgRoot\landingzones\landingzones-public";             TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-corp';               RelPath="$mgRoot\landingzones\landingzones-corp";               DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-online';             RelPath="$mgRoot\landingzones\landingzones-online";             DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-corp';  RelPath="$mgRoot\landingzones\landingzones-confidential-corp";  DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-online';RelPath="$mgRoot\landingzones\landingzones-confidential-online";DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-local';              RelPath="$mgRoot\landingzones\landingzones-local";              DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-public';             RelPath="$mgRoot\landingzones\landingzones-public";             DeploymentScope='management-group'; TargetMgId=$mgLandingZones }
 )
+
+# Wave 5 – optional networking deployments into Connectivity subscription
+if ($DeployHubNetworking) {
+    $deployments += [PSCustomObject]@{
+        Wave = 5
+        Name = 'networking-hubnetworking'
+        RelPath = "$networkRoot\hubnetworking"
+        DeploymentScope = 'subscription'
+        TargetSubscriptionId = $ConnectivitySubscriptionId
+    }
+}
+
+if ($DeployVirtualWan) {
+    $deployments += [PSCustomObject]@{
+        Wave = 5
+        Name = 'networking-virtualwan'
+        RelPath = "$networkRoot\virtualwan"
+        DeploymentScope = 'subscription'
+        TargetSubscriptionId = $ConnectivitySubscriptionId
+    }
+}
 
 # Filter to requested waves
 if ($OnlyWaves) {
@@ -288,11 +329,17 @@ function Resolve-BicepParam {
         Write-Warning "  Unreplaced placeholders in $([IO.Path]::GetFileName($ParamFilePath)): $unique"
     }
 
+    if ($UpdateParameterFilesFromYaml) {
+        # Persist directly when the user wants parameter files updated from YAML values.
+        Set-Content -Path $ParamFilePath -Value $content -Encoding UTF8 -WhatIf:$false
+        return $ParamFilePath
+    }
+
     # Keep the resolved file next to the source parameter file so
     # relative paths like "using './main.bicep'" stay valid.
     $paramDir = Split-Path -Parent $ParamFilePath
     $tmpPath = Join-Path $paramDir ".resolved-$([IO.Path]::GetRandomFileName()).bicepparam"
-    Set-Content -Path $tmpPath -Value $content -Encoding UTF8
+    Set-Content -Path $tmpPath -Value $content -Encoding UTF8 -WhatIf:$false
     $tempFiles.Add($tmpPath)
     return $tmpPath
 }
@@ -315,12 +362,21 @@ Write-Host "  Connectivity sub      : $ConnectivitySubscriptionId"
 Write-Host "  Identity sub          : $IdentitySubscriptionId"
 Write-Host "  Security sub          : $SecuritySubscriptionId"
 Write-Host "  Mode                  : $(if ($WhatIfPreference) { 'WHAT-IF' } else { 'DEPLOY' })"
+Write-Host "  Update param files    : $UpdateParameterFilesFromYaml"
 Write-Host ""
 $wavesShown = $deployments | Select-Object -ExpandProperty Wave | Sort-Object -Unique
 foreach ($w in $wavesShown) {
     Write-Host "  Wave $w :" -ForegroundColor Cyan
     $deployments | Where-Object Wave -eq $w | ForEach-Object {
-        Write-Host "    [$($_.Name)]  →  MG: $($_.TargetMgId)"
+        if ($_.DeploymentScope -eq 'management-group') {
+            Write-Host "    [$($_.Name)]  →  MG: $($_.TargetMgId)"
+        }
+        elseif ($_.DeploymentScope -eq 'subscription') {
+            Write-Host "    [$($_.Name)]  →  Subscription: $($_.TargetSubscriptionId)"
+        }
+        else {
+            Write-Host "    [$($_.Name)]  →  Scope: $($_.DeploymentScope)"
+        }
     }
 }
 Write-Host ""
@@ -360,25 +416,54 @@ try {
             $resolvedParam  = Resolve-BicepParam -ParamFilePath $paramFile
 
             Write-Host "`n  ► [$($d.Name)]" -ForegroundColor Green
-            Write-Host "    Target MG  : $($d.TargetMgId)"
+            if ($d.DeploymentScope -eq 'management-group') {
+                Write-Host "    Target MG  : $($d.TargetMgId)"
+            }
+            elseif ($d.DeploymentScope -eq 'subscription') {
+                Write-Host "    Target Sub : $($d.TargetSubscriptionId)"
+            }
             Write-Host "    Deployment : $deploymentName"
 
-            if ($WhatIfPreference) {
-                az deployment mg what-if `
-                    --management-group-id $d.TargetMgId `
-                    --name                $deploymentName `
-                    --location            $primaryLocation `
-                    --template-file       $bicepFile `
-                    --parameters          $resolvedParam
+            if ($d.DeploymentScope -eq 'management-group') {
+                if ($WhatIfPreference) {
+                    az deployment mg what-if `
+                        --management-group-id $d.TargetMgId `
+                        --name                $deploymentName `
+                        --location            $primaryLocation `
+                        --template-file       $bicepFile `
+                        --parameters          $resolvedParam
+                }
+                else {
+                    az deployment mg create `
+                        --management-group-id $d.TargetMgId `
+                        --name                $deploymentName `
+                        --location            $primaryLocation `
+                        --template-file       $bicepFile `
+                        --parameters          $resolvedParam `
+                        --output              json
+                }
+            }
+            elseif ($d.DeploymentScope -eq 'subscription') {
+                if ($WhatIfPreference) {
+                    az deployment sub what-if `
+                        --subscription       $d.TargetSubscriptionId `
+                        --name               $deploymentName `
+                        --location           $primaryLocation `
+                        --template-file      $bicepFile `
+                        --parameters         $resolvedParam
+                }
+                else {
+                    az deployment sub create `
+                        --subscription       $d.TargetSubscriptionId `
+                        --name               $deploymentName `
+                        --location           $primaryLocation `
+                        --template-file      $bicepFile `
+                        --parameters         $resolvedParam `
+                        --output             json
+                }
             }
             else {
-                az deployment mg create `
-                    --management-group-id $d.TargetMgId `
-                    --name                $deploymentName `
-                    --location            $primaryLocation `
-                    --template-file       $bicepFile `
-                    --parameters          $resolvedParam `
-                    --output              json
+                throw "[$($d.Name)] Unsupported deployment scope: $($d.DeploymentScope)"
             }
 
             if ($LASTEXITCODE -ne 0) {
@@ -406,7 +491,7 @@ try {
 finally {
     # Always clean up temp param files
     foreach ($f in $tempFiles) {
-        if (Test-Path $f) { Remove-Item $f -Force }
+        if (Test-Path $f) { Remove-Item $f -Force -WhatIf:$false }
     }
     Write-Verbose "Cleaned up $($tempFiles.Count) temp file(s)."
 }

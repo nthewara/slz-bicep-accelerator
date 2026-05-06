@@ -284,28 +284,45 @@ LOC=australiaeast
 -ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
 -ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
 -IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
--SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 1
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 1 `
+-UpdateParameterFilesFromYaml -YamlConfigPath './.config/platform-landing-zone.yaml'
 
 # 5.2 Landing Zones parent
 .\Deploy-IntRoot.ps1 `
 -ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
 -ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
 -IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
--SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 2
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 2 `
+-UpdateParameterFilesFromYaml -YamlConfigPath './.config/platform-landing-zone.yaml'
 
 .\Deploy-IntRoot.ps1 `
 -ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
 -ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
 -IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
--SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 3
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 3 `
+-UpdateParameterFilesFromYaml -YamlConfigPath './.config/platform-landing-zone.yaml'
 
 
 .\Deploy-IntRoot.ps1 `
 -ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
 -ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
 -IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
--SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 4
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID -OnlyWaves 4 `
+-UpdateParameterFilesFromYaml -YamlConfigPath './.config/platform-landing-zone.yaml'
 
+.\Deploy-IntRoot.ps1 `
+-ManagementSubscriptionId    MANAGEMENTSUBSCRIPTIONID `
+-ConnectivitySubscriptionId  CONNECTIVITYSUBSCRIPTIONID `
+-IdentitySubscriptionId      IDENTITYSUBSCRIPTIONID `
+-SecuritySubscriptionId     SECURITYSUBSCRIPTIONID 
+-OnlyWaves 5 `
+-DeployVirtualWan `
+-UpdateParameterFilesFromYaml -YamlConfigPath './.config/platform-landing-zone.yaml'
+
+
+
+
+##NOT Required
 # 5.3 Each child MG (run in parallel after 5.2 succeeds)
 for child in public corp online confidential-corp confidential-online local; do
   az deployment mg create \
