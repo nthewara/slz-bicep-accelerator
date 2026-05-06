@@ -242,6 +242,23 @@ Fix any unresolved `loadJsonContent` paths — those mean step 2a missed a file.
 
 > Each module has `targetScope = 'managementGroup'`. Deploy at the **tenant root** for `int-root`, then at each MG scope thereafter.
 
+NOTE: Before running the script update  
+- \templates\core\governance\lib\alz\sovereign_l2\Enforce-Sov-L2-TLS.alz_policy_assignment.json
+- templates\core\governance\lib\alz\sovereign_l2\Enforce-Sov-L2-HTTPS.alz_policy_assignment.json
+
+And update the 
+```bicep
+from: 
+  "identity": {
+    "type": "none"
+  }, 
+  
+  To: 
+  "identity": {
+    "type": "SystemAssigned"
+  }
+```
+
 ```bash
 az login --tenant <TENTNID OR TENANTNAME>
 

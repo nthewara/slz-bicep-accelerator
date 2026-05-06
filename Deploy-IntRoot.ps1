@@ -254,8 +254,8 @@ $deployments = @(
     [PSCustomObject]@{ Wave=3; Name='platform-management';      RelPath="$mgRoot\platform\platform-management";                 TargetMgId=$mgPlatformId }
 
     # Wave 4 – children of landingzones
-    # [PSCustomObject]@{ Wave=4; Name='landingzones-corp';               RelPath="$mgRoot\landingzones\landingzones-corp";               TargetMgId=$mgLandingZones }
-    # [PSCustomObject]@{ Wave=4; Name='landingzones-online';             RelPath="$mgRoot\landingzones\landingzones-online";             TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-corp';               RelPath="$mgRoot\landingzones\landingzones-corp";               TargetMgId=$mgLandingZones }
+    [PSCustomObject]@{ Wave=4; Name='landingzones-online';             RelPath="$mgRoot\landingzones\landingzones-online";             TargetMgId=$mgLandingZones }
     [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-corp';  RelPath="$mgRoot\landingzones\landingzones-confidential-corp";  TargetMgId=$mgLandingZones }
     [PSCustomObject]@{ Wave=4; Name='landingzones-confidential-online';RelPath="$mgRoot\landingzones\landingzones-confidential-online";TargetMgId=$mgLandingZones }
     [PSCustomObject]@{ Wave=4; Name='landingzones-local';              RelPath="$mgRoot\landingzones\landingzones-local";              TargetMgId=$mgLandingZones }
